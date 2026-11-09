@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interview Scheduling Agent | Nat Pisco</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; color: #17243a; background: #eef1f7; }
+    * { box-sizing: border-box; }
+    main { max-width: 68rem; margin: auto; padding: clamp(1.25rem, 5vw, 4rem); }
+    header { max-width: 44rem; margin-bottom: 2rem; }
+    h1 { font-size: clamp(2.3rem, 6vw, 4.2rem); line-height: 1.05; margin: .45rem 0 1rem; letter-spacing: -.06em; }
+    h2 { font-size: 1.2rem; margin: 0 0 .6rem; }
+    p { margin: 0 0 1rem; }
+    .eyebrow { color: #244fa0; font-size: .82rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .panels { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+    section { background: white; border: 1px solid #d4ddec; border-radius: .9rem; padding: 1.3rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
+    button { padding: .55rem .8rem; border: 1px solid #8899b5; border-radius: .45rem; background: white; color: inherit; font: inherit; cursor: pointer; }
+    button:first-child { color: white; background: #244fa0; border-color: #244fa0; }
+    button:disabled { opacity: .55; cursor: default; }
+    a { color: #214d9f; }
+    ol, ul { padding-inline-start: 1.35rem; }
+    li { margin-block: .4rem; }
+    output { display: block; padding: .8rem; background: #eef1f7; border-radius: .45rem; }
+    footer { margin-top: 1.5rem; }
+    @media (max-width: 44rem) { .panels { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Nat Pisco · Interactive engineering demo</p>
+      <h1>Interview scheduling agent</h1>
+      <p>See what happens when a candidate is unsure, confirms a time, or sends the same reply twice. This browser demo uses synthetic data and predictable replies. The local CLI supports optional Ollama suggestions.</p>
+    </header>
+    <div class="panels">
+      <section>
+        <h2>Candidate replies</h2>
+        <p>Alex Rivera can choose Tuesday at 10:00 AM or Wednesday at 2:00 PM.</p>
+        <div class="controls">
+          <button type="button" id="ambiguous">Send “Either day might work”</button>
+          <button type="button" id="book">Send “Book A”</button>
+          <button type="button" id="replay" disabled>Replay booking webhook</button>
+          <button type="button" id="compete" disabled>Try to book the same slot</button>
+          <button type="button" id="reset">Reset</button>
+        </div>
+        <output id="result" aria-live="polite">Choose a reply to begin.</output>
+        <ol id="events" aria-label="Event history"></ol>
+      </section>
+      <section>
+        <h2>Mock calendar</h2>
+        <p id="count">0 bookings</p>
+        <ul id="calendar"></ul>
+      </section>
+    </div>
+    <footer><a href="https://github.com/nath-d3v/ai-scheduling-agent">View source and tests</a> · <a href="https://natpisco.xyz/">Portfolio</a></footer>
+  </main>
+  <script type="module">
+    import { createScheduler } from './scheduler.js';
+
+    const booking = { id: 'evt-book', candidate: 'Alex Rivera', text: 'Book A' };
+    const events = {
+      ambiguous: { id: 'evt-unclear', candidate: 'Alex Rivera', text: 'Either day might work.' },
+      book: booking,
+      replay: booking,
+      compete: { id: 'evt-compete', candidate: 'Jordan Lee', text: 'Book A' },
+    };
+    const byId = id => document.getElementById(id);
+    let scheduler = createScheduler();
+
+    function renderCalendar() {
+      const bookings = scheduler.bookings();
+      byId('count').textContent = bookings.length === 1 ? '1 booking' : `${bookings.length} bookings`;
+      byId('calendar').replaceChildren(...bookings.map(({ candidate, time }) => {
+        const item = document.createElement('li');
+        item.textContent = `${candidate} · ${time}`;
+        return item;
+      }));
+      byId('book').disabled = bookings.length > 0;
+      byId('replay').disabled = bookings.length === 0;
+      byId('compete').disabled = bookings.length === 0;
+    }
+
+    for (const [action, event] of Object.entries(events)) {
+      byId(action).addEventListener('click', async () => {
+        const { status, message, replay } = await scheduler.receive(event);
+        byId('result').textContent = `${status}${replay ? ' · replay' : ''} · ${message}`;
+        const item = document.createElement('li');
+        item.textContent = `${event.candidate}: ${event.text} → ${status}${replay ? ' (replay)' : ''}`;
+        byId('events').prepend(item);
+        renderCalendar();
+      });
+    }
+
+    byId('reset').addEventListener('click', () => {
+      scheduler = createScheduler();
+      byId('events').replaceChildren();
+      byId('result').textContent = 'Choose a reply to begin.';
+      renderCalendar();
+    });
+  </script>
+</body>
+</html>

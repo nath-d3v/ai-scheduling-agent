@@ -1,0 +1,12 @@
+{
+  "name": "ai-scheduling-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "demo": "node demo.js",
+    "start": "node serve.js",
+    "test": "node --test"
+  }
+}
